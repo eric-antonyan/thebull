@@ -1,0 +1,22 @@
+.ripple-container {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    /* Adjust this to suit your layout */
+    z-index: 99;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple-animation 600ms linear;
+}
+
+@keyframes ripple-animation {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
