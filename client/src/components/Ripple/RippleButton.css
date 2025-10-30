@@ -1,0 +1,28 @@
+.ripple-btn {
+    position: relative;
+    overflow: hidden; /* Ensures ripples don't go outside the button */
+    display: inline-flex; /* Allows child elements to be flex items */
+    align-items: center; /* Centering children */
+    justify-content: center; /* Centering children */
+    color: white; /* Text color */
+    border: none; /* Remove default button styles */
+    cursor: pointer; /* Show pointer cursor on hover */
+}
+
+.ripple {
+    z-index: 9999;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%; /* Round shape */
+    background: rgba(255, 255, 255, 0.1); /* Ripple color */
+    transform: scale(0); /* Start from zero size */
+    animation: ripple-animation 1s linear; /* Animation */
+}
+
+@keyframes ripple-animation {
+    to {
+        transform: scale(9); /* Scale to 4 times the original size */
+        opacity: 0;
+    }
+}
