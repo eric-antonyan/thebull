@@ -1,35 +1,35 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HydratedDocument } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
 
-type AdminDocument = HydratedDocument<User>;
+@Schema({ timestamps: true })
+export class User extends Document {
+  @Prop({ required: true })
+  fullName: string;
 
-@Schema()
-class User {
-    @Prop()
-    fullName: string;
+  @Prop()
+  company: string;
 
-    @Prop()
-    company: string;
+  @Prop({ required: true, unique: true })
+  phoneNumber: string;
 
-    @Prop()
-    email: string;
+  @Prop({ required: true, unique: true })
+  email: string;
 
-    @Prop()
-    phoneNumber: string;
+  @Prop()
+  country: string;
 
-    @Prop()
-    country: string;
+  @Prop()
+  city: string;
 
-    @Prop()
-    city: string;
+  @Prop()
+  address: string;
 
-    @Prop()
-    address: string;
+  @Prop()
+  profession: string;
 
-    @Prop()
-    accepted: boolean;
+  @Prop({ required: true, select: false })
+  passwordHash: string;
 }
 
-const UserSchema = SchemaFactory.createForClass(User);
-
-export { AdminDocument, User, UserSchema };
+export const UserSchema = SchemaFactory.createForClass(User);

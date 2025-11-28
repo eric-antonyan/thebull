@@ -30,7 +30,6 @@ const EditTask = () => {
 
     useEffect(() => {
         const token = Cookies.get("jwt");
-        console.log(token)
 
         if (!token) {
             navigate("/")
@@ -41,7 +40,7 @@ const EditTask = () => {
         console.log(decrypedData)
         setAuth(true)
 
-    }, [auth]);
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {

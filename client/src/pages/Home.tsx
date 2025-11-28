@@ -8,37 +8,35 @@ import Ripple from "../components/Ripple/Ripple";
 import Header from "../components/Header";
 import Layout from "../Layout";
 import { Link } from "react-router-dom";
+import { useTasks } from "../hooks/useTasks";
 
 const Home = () => {
-    const [tasks, setTasks] = useState<Taskable[]>([]);
+  const { tasksQuery } = useTasks();
+  if (tasksQuery.isLoading) return <p>loading...</p>;
+  if (tasksQuery.error) return <p>error</p>;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const response = await api.get("/tasks");
+  const tasks = tasksQuery.data ?? [];
 
-            return setTasks(response.data)
-        }
-
-        fetchData()
-    }, []);
-
-    return (
-        <Layout title={"Черовники"} context={"Задачи"}>
-            <div className="grid gap-5">
-                {
-                    tasks.length > 0 ? (
-                        tasks.map((task, index) => (
-                            <Ripple className={"rounded-3xl"}>
-                                <TaskCard key={index} task={task} />
-                            </Ripple>
-                        ))
-                    ) : (
-                        <p className={"text-white"}>Задачи пусто, <Link className={"underline"} to={"/tasks/new"}>Добавить новый</Link></p>
-                    )
-                }
-            </div>
-        </Layout>
-    );
+  return (
+    <Layout title={"Черновики"} context={"Лента задач"}>
+      <div className="grid gap-5">
+        {tasks.length > 0 ? (
+          [...tasks].reverse().map((task) => (
+            <Ripple key={task._id} className={"rounded-3xl"}>
+              <TaskCard task={task} />
+            </Ripple>
+          ))
+        ) : (
+          <p className={"text-white"}>
+            Задачи пусто,{" "}
+            <Link className={"underline"} to={"/tasks/new"}>
+              Добавить новую
+            </Link>
+          </p>
+        )}
+      </div>
+    </Layout>
+  );
 };
 
 export default Home;

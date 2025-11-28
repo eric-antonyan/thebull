@@ -1,70 +1,78 @@
-import {BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException} from '@nestjs/common';
-import { CheckAdminDto } from './dto/check-admin.dto';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {JwtService} from "@nestjs/jwt";
+// src/users/users.service.ts
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { CheckAdminDto } from "./dto/check-admin.dto";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { JwtService } from "@nestjs/jwt";
 import mongoose from "mongoose";
-import {User} from "../schemas/admin.schema";
+import { User } from "../schemas/admin.schema";
+import * as bcrypt from "bcryptjs";
 
-const adminDetails = {
-    username: "sipan",
-    password: "thebull$2024"
-}
+const PRIMARY_ADMIN = {
+  phoneNumber: "79999999999",
+  password: "abuser",
+};
 
 @Injectable()
-class UsersService {
-    constructor(
-        @InjectModel(User.name) private userModel: Model<User>,
-        private jwt: JwtService
-    ) { }
+export class UsersService {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<any>,
+    private jwt: JwtService
+  ) {}
 
-    async checkAdmin(req: CheckAdminDto) {
-        const { phoneNumber } = req;
+  // Логин по телефону и паролю
+  async checkAdmin(dto: CheckAdminDto) {
+    const { phoneNumber, password } = dto;
 
-        const isExists = await this.userModel.findOne({ phoneNumber });
+    const user = await this.userModel
+      .findOne({ phoneNumber })
+      .select("+passwordHash");
 
-        if (isExists) {
-            const payload = isExists.toObject() ;
-            const token = await this.jwt.signAsync(payload);
-            return {
-                message: "Вы успешно вошли в систему!",
-                success: true,
-                token,
-            };
-        } else {
-            throw new HttpException({
-                message: "Пожалуйста, введите правильные данные!",
-                success: false
-            }, HttpStatus.NOT_FOUND);
-        }
+    if (!user) {
+      throw new UnauthorizedException({ message: "Неверные данные" });
     }
 
-    async getUser(id: string) {
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            throw new BadRequestException({
-                message: 'Please enter a valid user ID.',
-                errors: true,
-            });
-        }
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
 
-        try {
-            const user = await this.userModel.findOne({ _id: id });
-
-            if (!user) {
-                throw new NotFoundException({
-                    message: `User with ID ${id} not found.`,
-                });
-            }
-
-            return user;
-        } catch (error) {
-            console.error('Error fetching user:', error);
-            throw error; // Re-throwing the error to ensure it propagates
-        }
+    if (!isMatch) {
+      throw new UnauthorizedException({ message: "Неверные данные" });
     }
 
+    const token = await this.jwt.signAsync({
+      sub: user._id.toString(),
+      phoneNumber: user.phoneNumber,
+      role: "admin",
+    });
 
+    return {
+      message: "Успешный вход",
+      success: true,
+      token,
+    };
+  }
 
+  async getUser(id: string) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new BadRequestException({
+        message: "Please enter a valid user ID.",
+        errors: true,
+      });
+    }
+
+    const user = await this.userModel.findById(id).select("-password");
+    if (!user) {
+      throw new NotFoundException({
+        message: `User with ID ${id} not found.`,
+      });
+    }
+
+    return user;
+  }
 }
-
-export { UsersService }

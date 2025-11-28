@@ -1,46 +1,60 @@
+// src/pages/Settings.tsx
 import Layout from "../Layout";
-import {useEffect, useState} from "react";
-import {jwtDecode} from "jwt-decode";
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
-import {Request} from "../typings/Request"
 import parsePhoneNumber from "libphonenumber-js";
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { api } from "../api";
 
-const Settings = () => {
-    const [userData, setUserData] = useState<Request>();
-
-    useEffect(() => {
-        const decoded = jwtDecode(Cookies.get("jwt")  as string) as Request;
-
-        setUserData(decoded)
-    }, []);
-
-    const formatPhoneNumber = (phone: string) => {
-        return parsePhoneNumber("+" + phone)?.formatInternational()
-    }
-
-    const navigate = useNavigate()
-
-    const logout = () => {
-        Cookies.remove("jwt");
-
-        navigate("/")
-    }
-
-    return (
-        userData ? (
-            <Layout title={""} context={userData?.fullName} back>
-                <ul className={"text-white flex flex-col gap-3"}>
-                    <li>Номер телефона: {formatPhoneNumber(userData.phoneNumber)}</li>
-                    <li>Электроный почта: {userData.email}</li>
-                    <li>Компания: {userData.company}</li>
-                    <li>Страна: {userData.country}</li>
-                </ul>
-                <button onClick={logout} className={"bg-red-500 p-3 px-5 text-white mt-5 w-full rounded-2xl"}>Выйти</button>
-
-            </Layout>
-        ) : <></>
-    )
+interface DecodedToken {
+  sub: string;
+  phoneNumber: string;
+  email: string;
+  role: string;
 }
 
-export default Settings;    
+const Settings = () => {
+  const [userData, setUserData] = useState<any>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = Cookies.get("jwt");
+    if (!token) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      const userId = decoded.sub;
+
+      api.get(`/users/${userId}`)
+        .then(res => setUserData(res.data))
+        .catch(() => navigate("/"));
+    } catch {
+      navigate("/");
+    }
+  }, [navigate]);
+
+  const formatPhoneNumber = (phone: string) =>
+    parsePhoneNumber("+" + phone)?.formatInternational();
+
+  if (!userData) return <></>;
+
+  return (
+    <Layout title={""} context={userData.fullName} back>
+      <ul className="text-white flex flex-col gap-3">
+        <li>Номер телефона: {formatPhoneNumber(userData.phoneNumber)}</li>
+        <li>Электронная почта: {userData.email}</li>
+        <li>Компания: {userData.company}</li>
+        <li>Страна: {userData.country}</li>
+        <li>Город: {userData.city}</li>
+        <li>Адрес: {userData.address}</li>
+        <li>Профессия: {userData.profession}</li>
+      </ul>
+    </Layout>
+  );
+};
+
+export default Settings;

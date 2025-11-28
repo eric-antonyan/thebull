@@ -1,24 +1,38 @@
-import {Prop} from "@nestjs/mongoose";
-import {IsNotEmpty, IsNumber, IsString} from "class-validator";
+import { IsEmail, IsNotEmpty, IsString, MinLength } from "class-validator";
 
 export class CreateRequestDto {
-    @IsNotEmpty()
-    fullName: string;
+  @IsNotEmpty()
+  @IsString()
+  fullName: string;
 
-    @IsNotEmpty()
-    company: string;
+  @IsNotEmpty()
+  @IsString()
+  company: string;
 
-    @IsNotEmpty()
-    email: string;
+  @IsEmail()
+  email: string;
 
-    @IsNotEmpty()
-    phoneNumber: string;
+  @IsNotEmpty()
+  phoneNumber: string;
 
-    @IsNotEmpty()
-    country: string;
+  @IsNotEmpty()
+  country: string;
 
-    @IsNotEmpty()
-    address: string;
+  @IsNotEmpty()
+  city: string; 
 
-    accepted: boolean;
+  @IsNotEmpty()
+  address: string;
+
+  @IsNotEmpty()
+  profession: string;
+
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+
+  @IsNotEmpty()
+  confirmPassword: string;
+
+  accepted?: boolean;
 }

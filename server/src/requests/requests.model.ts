@@ -1,5 +1,5 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
-import {IsNotEmpty} from "class-validator";
+import { Document } from "mongoose";
 
 @Schema({timestamps: true})
 export class Request {
@@ -19,10 +19,22 @@ export class Request {
     country: string;
 
     @Prop()
+    city: string;
+
+    @Prop()
     address: string;
+
+    @Prop()
+    profession: string;
+
+    @Prop()
+    password: string;
 
     @Prop()
     accepted: boolean;
 }
 
 export const RequestSchema = SchemaFactory.createForClass(Request);
+
+// ⭐ THIS IS IMPORTANT
+export type RequestDocument = Request & Document;

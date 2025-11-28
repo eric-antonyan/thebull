@@ -14,6 +14,7 @@ import {jwtDecode} from "jwt-decode";
 import {Request} from "../typings/Request";
 import YandexMapByAddress from "../components/YandexMapByAddress";
 import parsePhoneNumber from "libphonenumber-js";
+import TaskChat from "../components/TaskChat";
 
 const Task = () => {
     const { taskId } = useParams();
@@ -21,6 +22,11 @@ const Task = () => {
     const navigate = useNavigate()
     const [auth, setAuth] = useState<Request>()
     const [user, setUser] = useState<Request>()
+
+    const fetchAuth = async (id: string) => {
+        const resposne = await api.get(`/users/${id}`);
+        setAuth(resposne.data)
+    }
 
     useEffect(() => {
         const token = Cookies.get("jwt");
@@ -31,9 +37,8 @@ const Task = () => {
         };
 
         const decrypedData = jwtDecode(token) as Request
-        setAuth(decrypedData)
-
-    }, [auth]);
+        fetchAuth(decrypedData.sub)
+    }, []);
 
     useEffect(() => {
         const fetchTask = async () => {
@@ -78,19 +83,20 @@ const Task = () => {
             <Layout back title={task.title} context={task.title}>
                 <p className={"text-white mb-4"}>Содатель <span className={"font-bold"}>{user?.fullName}</span></p>
                 {
-                    auth?._id === task?.owner && (
+                    auth?.sub === task?.owner && (
                         <div className={"text-white p-5 bg-gray-900  flex justify-end gap-5"}>
                             <Link to={`/tasks/${task._id}/update`}>Редактировать</Link>
                             <Link to={``} onClick={handleDelete} className={"text-red-500"}>Удалить</Link>
                         </div>
                     )
                 }
+                <h2 className="text-2xl text-white text-wrap font-bold">{task.title}</h2>
                 <div className="text-white rounded-t-2xl overflow-hidden">
                     {task.images.length > 0 && (
                         <Swiper
                             spaceBetween={10}
                             slidesPerView={1}
-                            className={"rounded-2xl overflow-hidden---------------------------"}
+                            className={"rounded-2xl overflow-hidden"}
                             pagination={{ clickable: false }}
                         >
                             {task.images.map((image, i) => (
@@ -111,6 +117,7 @@ const Task = () => {
                         <YandexMapByAddress address={user.address} />
                     )
                 }
+                {user && <TaskChat taskId={task._id} user={auth} />}  
                 {
                     user && (
                         <div className="bg-gray-800 text-white py-6 mt-6 p-4 rounded-3xl">

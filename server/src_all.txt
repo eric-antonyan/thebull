@@ -1,0 +1,1209 @@
+
+
+===== FILE: src/app.controller.ts =====
+// src/app.controller.ts
+import { Controller, Get, Res } from '@nestjs/common';
+import { Response } from 'express';
+import * as crypto from 'crypto';
+
+@Controller()
+export class AppController {
+  @Get('csrf-token')
+  generateCsrf(@Res() res: Response) {
+    const token = crypto.randomBytes(32).toString('hex');
+
+    res.cookie('csrf_token', token, {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return res.json({ csrfToken: token });
+  }
+}
+
+
+===== FILE: src/dto/CreateTask.dto.ts =====
+import {IsArray, IsBoolean, IsNotEmpty, IsString, IsUUID} from "class-validator";
+
+export class CreateTask {
+    @IsString()
+    @IsNotEmpty()
+    title: string;
+
+    @IsString()
+    @IsNotEmpty()
+    description: string;
+
+    @IsArray()
+    @IsString({each: true})
+    @IsNotEmpty()
+    images: string[]
+
+    @IsString()
+    @IsNotEmpty()
+    priority: string;
+
+
+    @IsNotEmpty()
+    @IsString()
+    owner: string;
+}
+
+===== FILE: src/dto/CreateRequest.dto.ts =====
+import { IsEmail, IsNotEmpty, IsString, MinLength } from "class-validator";
+
+export class CreateRequestDto {
+  @IsNotEmpty()
+  @IsString()
+  fullName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  company: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsNotEmpty()
+  country: string;
+
+  @IsNotEmpty()
+  city: string; 
+
+  @IsNotEmpty()
+  address: string;
+
+  @IsNotEmpty()
+  profession: string;
+
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+
+  @IsNotEmpty()
+  confirmPassword: string;
+
+  accepted?: boolean;
+}
+
+
+===== FILE: src/dto/UploadFile.dto.ts =====
+import { IsOptional, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class UploadFileDto {
+    @IsOptional()
+    @ValidateIf((obj) => obj.size !== undefined)
+    @Transform(({ value }) => parseInt(value, 10))
+    size: number;
+}
+
+
+===== FILE: src/dto/register-user.dto.ts =====
+// src/auth/dto/register-user.dto.ts
+import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+
+export class RegisterUserDto {
+  @IsNotEmpty()
+  fullName: string;
+
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsEmail()
+  email: string;
+
+  company?: string;
+  country?: string;
+  city?: string;
+  address?: string;
+  profession?: string;
+
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+}
+
+
+===== FILE: src/dto/UpdateTask.dto.ts =====
+// src/dto/UpdateTask.dto.ts
+import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
+
+export class UpdateTaskDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  images?: string[];
+
+  @IsString()
+  @IsOptional()
+  priority?: string;
+}
+
+
+===== FILE: src/schemas/task.schema.ts =====
+﻿import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
+
+@Schema({timestamps: true})
+export class Task {
+    @Prop()
+    title: string;
+
+    @Prop()
+    description: string;
+
+    @Prop()
+    active: boolean;
+
+    @Prop()
+    images: string[]
+
+    @Prop()
+    priority: string;
+
+    @Prop()
+    owner: string;
+}
+
+export const TaskSchema = SchemaFactory.createForClass(Task);
+
+===== FILE: src/schemas/uploads.schema.ts =====
+import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
+
+@Schema({timestamps: true})
+export class Upload {
+    @Prop()
+    hash: string;
+
+    @Prop()
+    filename: string;
+
+    @Prop()
+    extension: string;
+
+    @Prop() 
+    path: string;
+
+    @Prop()
+    storedFilename: string;
+}
+
+export const UploadSchema = SchemaFactory.createForClass(Upload);
+
+
+===== FILE: src/schemas/admin.schema.ts =====
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
+
+@Schema({ timestamps: true })
+export class User extends Document {
+  @Prop({ required: true })
+  fullName: string;
+
+  @Prop()
+  company: string;
+
+  @Prop({ required: true, unique: true })
+  phoneNumber: string;
+
+  @Prop({ required: true, unique: true })
+  email: string;
+
+  @Prop()
+  country: string;
+
+  @Prop()
+  city: string;
+
+  @Prop()
+  address: string;
+
+  @Prop()
+  profession: string;
+
+  @Prop({ required: true, select: false })
+  passwordHash: string;
+}
+
+export const UserSchema = SchemaFactory.createForClass(User);
+
+===== FILE: src/users/users.service.ts =====
+// src/users/users.service.ts
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { CheckAdminDto } from "./dto/check-admin.dto";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { JwtService } from "@nestjs/jwt";
+import mongoose from "mongoose";
+import { User } from "../schemas/admin.schema";
+import * as bcrypt from "bcryptjs";
+
+const PRIMARY_ADMIN = {
+  phoneNumber: "79999999999",
+  password: "abuser",
+};
+
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<any>,
+    private jwt: JwtService
+  ) {}
+
+  // Логин по телефону и паролю
+  async checkAdmin(dto: CheckAdminDto) {
+    const { phoneNumber, password } = dto;
+
+    const user = await this.userModel
+      .findOne({ phoneNumber })
+      .select("+passwordHash");
+
+    if (!user) {
+      throw new UnauthorizedException({ message: "Неверные данные" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isMatch) {
+      throw new UnauthorizedException({ message: "Неверные данные" });
+    }
+
+    const token = await this.jwt.signAsync({
+      sub: user._id.toString(),
+      phoneNumber: user.phoneNumber,
+      role: "admin",
+    });
+
+    return {
+      message: "Успешный вход",
+      success: true,
+      token,
+    };
+  }
+
+  async getUser(id: string) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new BadRequestException({
+        message: "Please enter a valid user ID.",
+        errors: true,
+      });
+    }
+
+    const user = await this.userModel.findById(id).select("-password");
+    if (!user) {
+      throw new NotFoundException({
+        message: `User with ID ${id} not found.`,
+      });
+    }
+
+    return user;
+  }
+}
+
+
+===== FILE: src/users/users.controller.ts =====
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { CheckAdminDto } from './dto/check-admin.dto';
+
+@Controller('users')
+export class UsersController {
+  constructor(private usersService: UsersService) {}
+
+  @Post('login')
+  checkAdmin(@Body() dto: CheckAdminDto) {
+    return this.usersService.checkAdmin(dto);
+  }
+
+  @Get(':id')
+  getUser(@Param('id') id: string) {
+    return this.usersService.getUser(id);
+  }
+}
+
+
+===== FILE: src/users/constants.ts =====
+
+export const jwtConstants = {
+    secret: 'DO NOT USE THIS VALUE. INSTEAD, CREATE A COMPLEX SECRET AND KEEP IT SAFE OUTSIDE OF THE SOURCE CODE.',
+};
+
+
+===== FILE: src/users/dto/index.ts =====
+
+
+===== FILE: src/users/dto/check-admin.dto.ts =====
+// src/users/dto/check-admin.dto.ts
+import { IsNotEmpty, MinLength, MaxLength } from "class-validator"
+
+export class CheckAdminDto {
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(64)
+  password: string;
+}
+
+
+===== FILE: src/users/users.module.ts =====
+// src/users/users.module.ts
+import { Module } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+import { MongooseModule } from '@nestjs/mongoose';
+import { User, UserSchema } from 'src/schemas/admin.schema';
+import { JwtModule } from "@nestjs/jwt";
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Request, RequestSchema } from "../requests/requests.model";
+
+@Module({
+  imports: [
+    ConfigModule,
+    MongooseModule.forFeature([
+      {
+        name: User.name,
+        schema: UserSchema,
+      },
+      {
+        name: Request.name,
+        schema: RequestSchema,
+      },
+    ]),
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get('JWT_SECRET'),
+        signOptions: {
+          expiresIn: '12h',
+        },
+      }),
+    }),
+  ],
+  providers: [UsersService],
+  controllers: [UsersController],
+  exports: [UsersService],
+})
+export class UsersModule {}
+
+
+===== FILE: src/app.service.ts =====
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {}
+
+
+===== FILE: src/uploads/uploads.service.ts =====
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Upload } from "../schemas/uploads.schema";
+import { UploadFileDto } from "../dto/UploadFile.dto";
+import * as fs from "fs";
+import * as path from "path";
+import { createHash } from "crypto";
+
+@Injectable()
+export class UploadsService {
+  constructor(
+    @InjectModel(Upload.name) private readonly uploadModel: Model<Upload>
+  ) {}
+
+  async save(file: Express.Multer.File, dto: UploadFileDto): Promise<Upload> {
+    const { originalname, mimetype, filename, path: filePath } = file;
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException("Uploaded file not found on disk");
+    }
+
+    // Extract the hash from filename created by Multer
+    // Example: 20251028T223344_abcdef1234567890abcd1234567890.png
+    const match = filename.match(/_(\w{32})/);
+    const hash = match
+      ? match[1]
+      : createHash("sha256").update(filename).digest("hex").slice(0, 32);
+    const fileExtName = path.extname(filename).replace(".", "");
+
+    const uploadPath = `./images/${filename}`;
+
+    const upload = new this.uploadModel({
+      filename: originalname,
+      hash,
+      extension: fileExtName,
+      path: uploadPath,
+      storedFilename: filename,
+    });
+
+    return await upload.save();
+  }
+
+  async getFile(hash: string): Promise<Upload | undefined> {
+    return this.uploadModel.findOne({ hash });
+  }
+
+  async delete(id: string) {
+    const file = await this.uploadModel.findOne({ hash: id });
+
+    if (!file) {
+      throw new NotFoundException({
+        message: "File not found",
+      });
+    }
+
+    const filePath = path.join("./images", `${file.storedFilename}`);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await this.uploadModel.deleteOne({ hash: id });
+
+    return { message: "File deleted successfully" };
+  }
+}
+
+===== FILE: src/uploads/uploads.module.ts =====
+import { Module } from '@nestjs/common';
+import { UploadsService } from './uploads.service';
+import { UploadsController } from './uploads.controller';
+import {MongooseModule} from "@nestjs/mongoose";
+import {Upload, UploadSchema} from "../schemas/uploads.schema";
+
+@Module({
+  imports: [
+      MongooseModule.forFeature([
+        {
+          name: Upload.name,
+          schema: UploadSchema
+        }
+      ])
+  ],
+  providers: [UploadsService],
+  controllers: [UploadsController]
+})
+export class UploadsModule {}
+
+
+===== FILE: src/uploads/uploads.controller.ts =====
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { UploadsService } from "./uploads.service";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { UploadFileDto } from "../dto/UploadFile.dto";
+import { validate } from "class-validator";
+import { diskStorage } from "multer";
+import { extname } from "path";
+import { createHash } from "crypto";
+import { createReadStream } from "fs";
+import { Response } from "express";
+import * as fs from "node:fs";
+
+@Controller("uploads")
+export class UploadsController {
+  constructor(private readonly uploadService: UploadsService) {}
+
+  @Post("")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: "./images",
+        filename: (req, file, cb) => {
+          try {
+            const fileExtName = extname(file.originalname);
+            const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
+            const hash = createHash("sha256")
+              .update(timestamp + file.originalname)
+              .digest("hex")
+              .slice(0, 32);
+            const newFileName = `${timestamp}_${hash}${fileExtName}`;
+            cb(null, newFileName);
+          } catch (err) {
+            cb(err, null);
+          }
+        },
+      }),
+    })
+  )
+  public async upload(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() dto: UploadFileDto
+  ) {
+    if (!file) {
+      throw new BadRequestException("File is required");
+    }
+
+    if (
+      !["image/jpeg", "image/png", "image/webp", "image/avif"].includes(
+        file.mimetype
+      )
+    ) {
+      throw new BadRequestException("File type must be either JPEG or PNG");
+    }
+
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      throw new BadRequestException(errors);
+    }
+
+    const savedFile: any = await this.uploadService.save(file, dto);
+
+    return {
+      message: "Image uploaded successfully",
+      filename: savedFile.filename,
+      hash: savedFile.hash,
+      extension: savedFile.extension,
+    };
+  }
+
+  @Get(":hash")
+  public async getFile(@Param("hash") hash: string, @Res() res: Response) {
+    const file = await this.uploadService.getFile(hash);
+
+    if (!file) {
+      throw new NotFoundException(`File with hash ${hash} not found`);
+    }
+
+    const storedFileName =
+      file.storedFilename || `${file.hash}.${file.extension}`;
+    const filePath = `./images/${storedFileName}`;
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException(`File not found on disk for hash ${hash}`);
+    }
+
+    const mimeType = this.getMimeType(file.extension);
+
+    // ⭐ REQUIRED HEADERS for Firefox CORP
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+
+    // File headers
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);
+
+    const fileStream = createReadStream(filePath);
+    return fileStream.pipe(res);
+  }
+
+  private getMimeType(ext: string): string {
+    const types = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+    };
+    return types[ext.toLowerCase()] || "application/octet-stream";
+  }
+
+  @Delete(":id")
+  async delete(@Param("id") id: string) {
+    return this.uploadService.delete(id);
+  }
+}
+
+
+===== FILE: src/app.module.ts =====
+// src/app.module.ts
+import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { UsersModule } from './users/users.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { TasksModule } from './tasks/tasks.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { RequestsModule } from './requests/requests.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CsrfMiddleware } from '../common/middleware/csrf.middleare';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get('MONGO_URI'),
+      }),
+    }),
+
+    UsersModule,
+    TasksModule,
+    UploadsModule,
+    RequestsModule,
+  ],
+
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CsrfMiddleware).forRoutes('*');
+  }
+}
+
+
+===== FILE: src/tasks/tasks.controller.ts =====
+import {Body, Controller, Delete, Get, Param, Patch, Post, Put} from '@nestjs/common';
+import {CreateTask} from "../dto/CreateTask.dto";
+import {TasksService} from "./tasks.service";
+import {UpdateTaskDto} from "../dto/UpdateTask.dto";
+
+@Controller('tasks')
+export class TasksController {
+    constructor(
+        private taskService: TasksService
+    ) { }
+
+    @Post()
+    public create(@Body() body: CreateTask) {
+        return this.taskService.create(body);
+    }
+
+    @Get(":taskId")
+    public getTaskById(@Param("taskId") taskId: string) {
+        return this.taskService.getTaskById(taskId)
+    }
+
+    @Patch(":taskId")
+    public updateTask(
+        @Param("taskId") taskId: string,
+        @Body() dto: UpdateTaskDto
+    ) {
+        return this.taskService.update(taskId, dto);
+    }
+
+    @Delete(":taskId")
+    public delete(
+        @Param("taskId") taskId: string
+    ) {
+        return this.taskService.delete(taskId)
+    }
+
+    @Get("")
+    public getAll() {
+        return this.taskService.getAll();
+    }
+}
+
+
+===== FILE: src/tasks/tasks.service.ts =====
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import * as mongoose from 'mongoose';
+import { Task } from '../schemas/task.schema';
+import { Upload } from '../schemas/uploads.schema';
+import { CreateTask } from '../dto/CreateTask.dto';
+import { UpdateTaskDto } from '../dto/UpdateTask.dto';
+
+@Injectable()
+export class TasksService {
+    constructor(
+        @InjectModel(Task.name) private tasksModel: Model<Task>,
+        @InjectModel(Upload.name) private uploadModel: Model<Upload>
+    ) {}
+
+    public async create(dto: CreateTask) {
+        const { title, description, images, priority, owner } = dto;
+
+        // Create the task with provided data
+        const task = new this.tasksModel({
+            title,
+            description,
+            images,
+            priority,
+            owner
+        });
+
+        await task.save();
+        return task;
+    }
+
+    public async getTaskById(taskId: string) {
+        if (!mongoose.Types.ObjectId.isValid(taskId)) {
+            throw new BadRequestException({
+                message: 'Please enter a valid task ID.',
+                errors: true,
+            });
+        }
+
+        const task = await this.tasksModel.findById(taskId);
+        if (!task) {
+            throw new NotFoundException({
+                message: `Task with ID ${taskId} not found.`,
+                errors: true,
+            });
+        }
+
+        return task;
+    }
+
+    public async update(taskId: string, dto: UpdateTaskDto) {
+        if (!mongoose.Types.ObjectId.isValid(taskId)) {
+            throw new BadRequestException({
+                message: 'Please enter a valid task ID.',
+                errors: true,
+            });
+        }
+
+        const task = await this.tasksModel.findById(taskId);
+        if (!task) {
+            throw new NotFoundException({
+                message: 'Task not found for updating.',
+                errors: true,
+            });
+        }
+
+        const updatedTask = await this.tasksModel.findByIdAndUpdate(
+            taskId,
+            { $set: dto },
+            { new: true }
+        );
+
+        return updatedTask;
+    }
+
+    public async getAll() {
+        const tasks = await this.tasksModel.find();
+        return tasks;
+    }
+
+    public async delete(taskId: string) {
+        if (!mongoose.Types.ObjectId.isValid(taskId)) {
+            throw new BadRequestException({
+                message: 'Please enter a valid task ID.',
+                errors: true,
+            });
+        }
+
+        const task = await this.tasksModel.findById(taskId);
+        if (!task) {
+            throw new NotFoundException({
+                message: 'Task not found for deletion.',
+            });
+        }
+
+        // Delete associated images from the upload collection
+        const deletePromises = task.images.map(async (hash) => {
+            await this.uploadModel.deleteOne({ hash });
+        });
+
+        // Wait for all image deletions to complete
+        await Promise.all(deletePromises);
+
+        // Delete the task itself
+        const deleted = await this.tasksModel.deleteOne({ _id: taskId });
+
+        return task;
+    }
+}
+
+
+===== FILE: src/tasks/tasks.module.ts =====
+import {Module} from '@nestjs/common';
+import {TasksService} from './tasks.service';
+import {TasksController} from './tasks.controller';
+import {MongooseModule} from "@nestjs/mongoose";
+import {Task, TaskSchema} from "../schemas/task.schema";
+import {TasksGateway} from "../gateway/TasksGateway";
+import {Upload, UploadSchema} from "../schemas/uploads.schema";
+
+@Module({
+    imports: [
+        MongooseModule.forFeature([
+            {
+                name: Task.name,
+                schema: TaskSchema
+            },
+            {
+                name: Upload.name,
+                schema: UploadSchema
+            }
+        ])
+    ],
+    providers: [TasksService, TasksGateway],
+    controllers: [TasksController]
+})
+export class TasksModule {
+}
+
+
+===== FILE: src/gateway/TasksGateway.ts =====
+import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
+import { Server, WebSocket } from 'ws';
+import { TasksService } from '../tasks/tasks.service';
+import { CreateTask } from '../dto/CreateTask.dto';
+import { UpdateTaskDto } from '../dto/UpdateTask.dto';
+
+@WebSocketGateway({ port: 8080 }) // Define WebSocket port
+export class TasksGateway {
+    @WebSocketServer()
+    server: Server;
+
+    constructor(private readonly tasksService: TasksService) {}
+
+    async handleConnection(client: WebSocket) {
+        // Send all tasks when a client connects
+        const tasks = await this.tasksService.getAll();
+        client.send(JSON.stringify({ event: 'tasks', data: tasks }));
+    }
+
+    @SubscribeMessage('createTask')
+    async handleCreateTask(@MessageBody() createTaskDto: CreateTask) {
+        const task = await this.tasksService.create(createTaskDto);
+        // Broadcast the new task to all connected clients
+        this.server.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ event: 'taskCreated', data: task }));
+            }
+        });
+    }
+
+    @SubscribeMessage('updateTask')
+    async handleUpdateTask(@MessageBody() data: { id: string; updateTaskDto: UpdateTaskDto }) {
+        const updatedTask = await this.tasksService.update(data.id, data.updateTaskDto);
+        // Broadcast the updated task to all connected clients
+        this.server.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ event: 'taskUpdated', data: updatedTask }));
+            }
+        });
+    }
+
+    @SubscribeMessage('deleteTask')
+    async handleDeleteTask(@MessageBody() id: string) {
+        await this.tasksService.delete(id);
+        // Broadcast the deletion event to all connected clients
+        this.server.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ event: 'taskDeleted', data: id }));
+            }
+        });
+    }
+}
+
+
+===== FILE: src/requests/requests.service.ts =====
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from "@nestjs/common";
+import * as bcrypt from "bcryptjs";
+import { CreateRequestDto } from "../dto/CreateRequest.dto";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, MongooseError } from "mongoose";
+import { MongoError } from "mongodb";
+import mongoose from "mongoose";
+import { User } from "../schemas/admin.schema";
+import { RequestDocument } from "./requests.model";
+
+@Injectable()
+export class RequestsService {
+  constructor(
+    @InjectModel(Request.name) private requestModel: Model<RequestDocument>,
+    @InjectModel(User.name) private usersModel: Model<User>
+  ) {}
+  async create(dto: CreateRequestDto) {
+    dto.accepted = false;
+    const exist = await this.requestModel.findOne({
+      $or: [{ email: dto.email }, { phoneNumber: dto.phoneNumber }],
+    });
+
+    if (!exist) {
+      const request = await this.requestModel.create(dto);
+    } else {
+      throw new ConflictException({
+        message: "Вы уже отправили запрос из этом email или номер телофена",
+      });
+    }
+  }
+
+  async getAll() {
+    const requests = await this.requestModel.find();
+
+    return requests;
+  }
+
+  async accept(requestId: string) {
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
+      throw new BadRequestException({ message: "Invalid ID" });
+    }
+
+    const request = await this.requestModel.findById(requestId);
+    if (!request) {
+      throw new NotFoundException({ message: "Not found" });
+    }
+
+    // Mark accepted
+    await this.requestModel.updateOne({ _id: requestId }, { accepted: true });
+
+    // ✔ GET RAW PASSWORD FROM REQUEST
+    const hashedPassword = await bcrypt.hash(request.password, 12);
+    console.log("[+]" ,request.password, hashedPassword);
+    
+
+    // ✔ CREATE USER
+    await this.usersModel.create({
+      fullName: request.fullName,
+      company: request.company,
+      phoneNumber: request.phoneNumber,
+      email: request.email,
+      country: request.country,
+      city: request.city,
+      address: request.address,
+      profession: request.profession,
+      passwordHash: hashedPassword,
+    });
+
+    return { message: "Заявка принята" };
+  }
+
+  async refuse(requestId: string) {
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
+      throw new BadRequestException({
+        message: "Please enter a valid task ID.",
+        errors: true,
+      });
+    }
+
+    const request = await this.requestModel.findOne({ _id: requestId });
+
+    if (!request) {
+      throw new NotFoundException({
+        message: "Заявка с таком ID не найдено",
+      });
+    }
+
+    await this.requestModel.deleteOne({ _id: requestId });
+    await this.usersModel.deleteOne({ _id: requestId });
+
+    return {
+      message: "Удалено",
+    };
+  }
+}
+
+
+===== FILE: src/requests/requests.module.ts =====
+import { Module } from '@nestjs/common';
+import { RequestsController } from './requests.controller';
+import { RequestsService } from './requests.service';
+import { MongooseModule } from "@nestjs/mongoose";
+import { Request, RequestSchema } from "./requests.model";
+import { User, UserSchema } from "../schemas/admin.schema";
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      {
+        name: User.name,
+        schema: UserSchema,
+      },
+      {
+        name: Request.name,
+        schema: RequestSchema,
+      },
+    ]),
+  ],
+  controllers: [RequestsController],
+  providers: [RequestsService],
+})
+export class RequestsModule {}
+
+
+===== FILE: src/requests/requests.controller.ts =====
+import {Body, Controller, Get, Param, Post, Put} from '@nestjs/common';
+import {CreateRequestDto} from "../dto/CreateRequest.dto";
+import {RequestsService} from "./requests.service";
+
+@Controller('requests')
+export class RequestsController {
+    constructor(
+        private readonly requestsService: RequestsService
+    ) {
+    }
+    @Post()
+    create(@Body() dto: CreateRequestDto) {
+        return this.requestsService.create(dto)
+    }
+
+    @Get("")
+    getAll() {
+        return this.requestsService.getAll()
+    }
+
+    @Put(":id/accept")
+    accept(
+        @Param("id") id: string
+    ) {
+        return this.requestsService.accept(id)
+    }
+
+    @Put(":id/refuse")
+    refuse(
+        @Param("id") id: string
+    ) {
+        return this.requestsService.refuse(id)
+    }
+}
+
+
+===== FILE: src/requests/requests.model.ts =====
+import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
+import { Document } from "mongoose";
+
+@Schema({timestamps: true})
+export class Request {
+    @Prop()
+    fullName: string;
+
+    @Prop()
+    company: string;
+
+    @Prop()
+    email: string;
+
+    @Prop()
+    phoneNumber: string;
+
+    @Prop()
+    country: string;
+
+    @Prop()
+    city: string;
+
+    @Prop()
+    address: string;
+
+    @Prop()
+    profession: string;
+
+    @Prop()
+    password: string;
+
+    @Prop()
+    accepted: boolean;
+}
+
+export const RequestSchema = SchemaFactory.createForClass(Request);
+
+// ⭐ THIS IS IMPORTANT
+export type RequestDocument = Request & Document;
+
+
+===== FILE: src/main.ts =====
+// src/main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from "bcryptjs"
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const config = app.get(ConfigService);
+
+  const isProd = config.get('NODE_ENV') === 'production';
+
+  // Serve uploaded images
+  app.useStaticAssets(join(__dirname, '..', 'images'));
+
+  // 🔐 Security headers
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: false,
+    })
+  );
+
+  // CORS
+  app.enableCors({
+    origin: config.get('CORS_ORIGIN') || 'http://localhost:5173',
+    credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token'
+    ],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  });
+
+  // Rate limiting
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 200,
+      standardHeaders: true,
+    })
+  );
+
+  // Cookie parser for CSRF
+  app.use(cookieParser());
+
+  // Validation pipes
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    })
+  );
+
+  // Global API prefix
+  app.setGlobalPrefix('api');
+
+  
+
+  await app.listen(config.get('PORT') || 8000);
+  const hashed = await bcrypt.hash("123456789", 12);
+
+  console.log(hashed);
+  console.log(`Secure API running on http://localhost:${config.get('PORT')}`);
+}
+bootstrap();
