@@ -52,11 +52,6 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // авто-скролл вниз
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, fullscreen]);
-
   const handleSend = () => {
     if (!text.trim() && !previewImg) return;
 
