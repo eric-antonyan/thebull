@@ -173,12 +173,13 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
 
   return (
     <div
+    style={{height: fullscreen ? window.innerHeight : 480}}
       className={`
         bg-black text-white p-4 flex flex-col overflow-hidden transition-all duration-300
         ${
           fullscreen
-            ? "fixed inset-0 z-[9999] h-screen w-screen rounded-none"
-            : "rounded-2xl mt-6 h-[480px] max-w-[450px]"
+            ? "fixed inset-0 z-[9999] w-screen rounded-none"
+            : "rounded-2xl mt-6 max-w-[450px]"
         }
       `}
     >
@@ -296,7 +297,7 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
               handleSend();
             }
           }}
-          className="flex-1 bg-gray-900 p-3 rounded-xl outline-none"
+          className="flex-1 w-full bg-gray-900 p-3 rounded-xl outline-none"
           placeholder={
             editingMessage
               ? "Редактировать сообщение..."
