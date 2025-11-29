@@ -26,10 +26,11 @@ async function bootstrap() {
       contentSecurityPolicy: false,
     })
   );
+  app.set('trust proxy', 1);
 
   // CORS
   app.enableCors({
-    origin: config.get('CORS_ORIGIN') || 'http://localhost:5173',
+    origin: "",
     credentials: true,
     allowedHeaders: [
       'Content-Type',
@@ -67,7 +68,7 @@ async function bootstrap() {
 
   
 
-  await app.listen(config.get('PORT') || 8000);
+  await app.listen(config.get('PORT') || 8000, '0.0.0.0');
   const hashed = await bcrypt.hash("123456789", 12);
 
   console.log(hashed);

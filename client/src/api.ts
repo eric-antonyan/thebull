@@ -3,7 +3,7 @@ import Cookies from "js-cookie";
 import { Request } from "./typings/Request";
 
 const api = axios.create({
-  baseURL: `http://${window.location.hostname}:8000/api`,
+  baseURL: `https://${window.location.hostname}/api`,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

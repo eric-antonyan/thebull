@@ -39,9 +39,14 @@ export const useTaskChat = (
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const socket = io(`http://${window.location.hostname}:8000/ws-chat`, {
-      transports: ["websocket"],
-    });
+    const socket = io(`https://${window.location.hostname}/ws-chat`, {
+  path: "/socket.io",
+  transports: ["websocket"],
+  withCredentials: true,
+});
+
+
+
 
     socketRef.current = socket;
 
