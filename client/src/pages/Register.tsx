@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import PhoneInput from 'react-phone-input-2';
 import '../css/styles.css';
 import { Request } from "../typings/Request";
+import { useHeight } from '../hooks/useHeght';
 
 interface ServerResponse {
   message: string;
@@ -55,7 +56,7 @@ const validationSchema = Yup.object({
 
 const Register: React.FC = () => {
   const [response, setResponse] = useState<ServerResponse | undefined>();
-  const { innerHeight } = window;
+  const height = useHeight();
 
   const handleSubmit = async (values: any) => {
 
@@ -66,7 +67,7 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="bg-darker max-w-[450px] w-full flex flex-col" style={{ height: innerHeight }}>
+    <div className="bg-darker max-w-[450px] w-full flex flex-col" style={{ height: height }}>
       <div
         className="flex-[0.3] relative flex flex-col items-center justify-center"
         style={{

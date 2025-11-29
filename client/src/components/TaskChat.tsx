@@ -55,7 +55,6 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
   const handleSend = () => {
     if (!text.trim() && !previewImg) return;
 
-    // отправка картинки
     if (previewImg) {
       sendImage(previewImg);
       setPreviewImg(null);

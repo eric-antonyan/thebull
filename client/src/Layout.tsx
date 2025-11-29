@@ -3,6 +3,7 @@ import React from "react";
 import { FaArrowLeft } from "react-icons/fa6";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "./components/Header";
+import { useHeight } from "./hooks/useHeght";
 
 const Layout = ({
   title,
@@ -15,13 +16,13 @@ const Layout = ({
   children: React.ReactNode;
   back?: boolean;
 }) => {
-  const { innerHeight } = window;
+  const height = useHeight();
   const navigate = useNavigate();
 
   return (
     <div
       className="max-w-[450px] flex flex-col w-full bg-gray-900"
-      style={{ height: innerHeight + "px" }}
+      style={{ height: height + "px" }}
     >
       <Header title={title} />
       <div className={"p-5 flex-1 overflow-y-auto overflow-hidden"}>
