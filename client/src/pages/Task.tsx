@@ -103,7 +103,7 @@ const Task = () => {
                                 <SwiperSlide key={i}>
                                     <img
                                         className="w-full aspect-square object-cover rounded-2xl"
-                                        src={`https://${window.location.hostname}/api/uploads/${image}`}
+                                        src={`http://exp.thebull.ru/api/uploads/${image}`}
                                         alt={`Task image ${i + 1}`}
                                     />
                                 </SwiperSlide>

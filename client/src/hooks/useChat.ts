@@ -39,14 +39,12 @@ export const useTaskChat = (
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const socket = io(`https://${window.location.hostname}/ws-chat`, {
-  path: "/socket.io",
-  transports: ["websocket"],
-  withCredentials: true,
-});
-
-
-
+    const socket = io(
+      `http://exp.thebull.ru/ws-chat`,
+      {
+        transports: ["websocket"],
+      }
+    );
 
     socketRef.current = socket;
 
@@ -65,12 +63,16 @@ export const useTaskChat = (
 
     // edited message
     socket.on("message_edited", (msg: ChatMessage) => {
-      setMessages((prev) => prev.map((m) => (m._id === msg._id ? msg : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msg._id ? msg : m))
+      );
     });
 
     // deleted message (soft delete)
     socket.on("message_deleted", (msg: ChatMessage) => {
-      setMessages((prev) => prev.map((m) => (m._id === msg._id ? msg : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msg._id ? msg : m))
+      );
     });
 
     // online users
@@ -84,8 +86,8 @@ export const useTaskChat = (
     });
 
     socket.on("task_users", (users) => {
-      setParticipants(users);
-    });
+    setParticipants(users);
+  });
 
     return () => {
       socket.disconnect();
@@ -148,6 +150,8 @@ export const useTaskChat = (
       senderName,
     });
   };
+  
+  
 
   return {
     messages,

@@ -157,7 +157,7 @@ const EditTask = () => {
                                     key={i}
                                     className={"relative w-full aspect-square rounded-3xl"}
                                     style={{
-                                        background: `url(${`http://${window.location.hostname}:8000/api/uploads/${base64}`})`,
+                                        background: `url(${`http://exp.thebull.ru/api/uploads/${base64}`})`,
                                         backgroundSize: "cover",
                                         backgroundPosition: "center"
                                     }}

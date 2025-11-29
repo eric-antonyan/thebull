@@ -41,7 +41,9 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
   );
 
   // состояние для dropdown меню
-  const [contextMessage, setContextMessage] = useState<ChatMessage | null>(null);
+  const [contextMessage, setContextMessage] = useState<ChatMessage | null>(
+    null
+  );
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -162,13 +164,17 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
         </p>
       );
     }
-    return <p className="text-xs text-gray-500 italic">Несколько людей печатают...</p>;
+    return (
+      <p className="text-xs text-gray-500 italic">
+        Несколько людей печатают...
+      </p>
+    );
   };
 
   return (
     <div
       className={`
-        relative bg-black text-white p-4 flex flex-col overflow-hidden transition-all duration-300
+        bg-black text-white p-4 flex flex-col overflow-hidden transition-all duration-300
         ${
           fullscreen
             ? "fixed inset-0 z-[9999] h-screen w-screen rounded-none"
@@ -176,16 +182,6 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
         }
       `}
     >
-      {/* close button in fullscreen */}
-      {fullscreen && (
-        <button
-          onClick={() => setFullscreen(false)}
-          className="fixed top-4 right-4 bg-gray-900 px-4 py-2 rounded-xl z-[10000]"
-        >
-          <FaXmark size={18} />
-        </button>
-      )}
-
       {/* top bar */}
       <div className="flex justify-between items-center mb-3 gap-3">
         <h2 className="font-bold text-lg">Чат задачи</h2>
@@ -193,12 +189,19 @@ const TaskChat: FC<TaskChatProps> = ({ taskId, user }) => {
           Онлайн: {onlineUsers.length}
         </span>
 
-        {!fullscreen && (
+        {!fullscreen ? (
           <button
             onClick={() => setFullscreen(true)}
             className="bg-gray-800 text-white px-3 py-1 rounded-lg"
           >
             ⛶
+          </button>
+        ) : (
+          <button
+            onClick={() => setFullscreen(false)}
+            className="bg-gray-900 px-4 py-2 rounded-xl z-[10000]"
+          >
+            <FaXmark size={18} />
           </button>
         )}
       </div>

@@ -21,7 +21,7 @@ const App: React.FC = () => {
     const loadCsrf = async () => {
       try {
         const res = await axios.get(
-          `https://${window.location.hostname}/api/csrf-token`,
+          `https://exp.thebull.ru/api/csrf-token`,
           { withCredentials: true }
         );
 

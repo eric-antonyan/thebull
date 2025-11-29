@@ -4,7 +4,7 @@ import { queryClient } from "../queryClient";
 
 export const useTasksSocket = () => {
   useEffect(() => {
-    const socket = io(`http://${window.location.hostname}:8000`, {
+    const socket = io(`http://exp.thebull.ru`, {
       transports: ["websocket"],
     });
 
